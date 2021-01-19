@@ -1,5 +1,6 @@
-package com.example.moviesapp.viewholders
+package com.example.moviesapp.presentation.movies.view.list
 
+import android.annotation.SuppressLint
 import android.view.View
 import androidx.appcompat.widget.AppCompatImageView
 import androidx.appcompat.widget.AppCompatTextView
@@ -7,11 +8,20 @@ import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.example.moviesapp.R
-import com.example.moviesapp.adapters.MoviesAdapter
-import com.example.moviesapp.data.models.Movie
+import com.example.moviesapp.model.entities.movies.popular.Result
+import com.example.moviesapp.presentation.movies.viewmodel.MoviesListViewModel
+import com.example.moviesapp.presentation.movies.utils.imageOptionMovie
 
-class MovieViewHolder(itemView: View, listener: MoviesAdapter.OnClickPoster?) :
+
+class MovieViewHolder(
+    itemView: View,
+    val listener: MoviesAdapter.OnClickPoster?,
+    val viewModel: MoviesListViewModel
+) :
     RecyclerView.ViewHolder(itemView) {
+
+    private val configuration = viewModel.configuration
+    private val genres = viewModel.genreList
 
     private val pgMovie = itemView.findViewById<AppCompatTextView>(R.id.pg_movie)
     private val favouriteImage = itemView.findViewById<AppCompatImageView>(R.id.favourite_image)
@@ -19,7 +29,8 @@ class MovieViewHolder(itemView: View, listener: MoviesAdapter.OnClickPoster?) :
     private val tagLine = itemView.findViewById<AppCompatTextView>(R.id.tag_line_movie)
     private val countReviews = itemView.findViewById<AppCompatTextView>(R.id.reviews_count_movie)
     private val title = itemView.findViewById<AppCompatTextView>(R.id.title_movie)
-    private val timeLine = itemView.findViewById<AppCompatTextView>(R.id.time_film)
+
+    //private val timeLine = itemView.findViewById<AppCompatTextView>(R.id.time_film)
     private val listStarsRating = listOf<AppCompatImageView>(
         itemView.findViewById(R.id.star_one_movie),
         itemView.findViewById(R.id.star_two_movie),
@@ -28,22 +39,32 @@ class MovieViewHolder(itemView: View, listener: MoviesAdapter.OnClickPoster?) :
         itemView.findViewById(R.id.star_five_movie)
     )
 
-    init {
-        itemView.apply {
-            setOnClickListener { listener?.createMoviesDetailsFragment(position = adapterPosition)
-            }
-        }
+    @SuppressLint("SetTextI18n")
+    fun onBind(movie: Result) {
+        setClickListener(movie=movie)
+        title.text = movie.title
+        pgMovie.text = if (movie.adult == true) "+18" else "+16"
+        tagLine.text = genres?.genres?.filter { movie.genreIDS?.contains(it.id) ?: false }
+            ?.joinToString(separator = " , ") { it.name }
+        countReviews.text = "${movie.voteCount} reviews"
+        //timeLine.text = "${movie.runtime} MIN"
+
+        downloadImage(movie = movie)
+        bindStars(countRating = (movie.voteAverage?.div(2))?.toInt() ?: 0)
+
+
+        //bindFavouriteImage(isFavourite = movie.isFavourite)
     }
 
-    fun onBind(movie: Movie) {
-        title.text = movie.title
-        pgMovie.text = movie.ageRating
-        tagLine.text = movie.tags.joinToString(separator = ",")
-       countReviews.text = "${movie.countReviews} reviews"
-        timeLine.text = "${movie.timeLine} MIN"
-
-        downloadImage(movie=movie)
-
+    private fun setClickListener(movie: Result){
+        itemView.apply {
+            setOnClickListener {
+                listener?.createMoviesDetailsFragment(
+                    movieId = movie.id,
+                    configuration = viewModel.configuration
+                )
+            }
+        }
     }
 
     private fun bindStars(countRating: Int) {
@@ -71,16 +92,17 @@ class MovieViewHolder(itemView: View, listener: MoviesAdapter.OnClickPoster?) :
         )
     }
 
-    private fun downloadImage(movie: Movie){
+    private fun downloadImage(movie: Result) {
         Glide.with(context)
             .clear(imagePoster)
 
         Glide.with(context)
-            .load(movie.imageMovie)
-            .apply(ActorViewHolder.imageOption)
+            .load(
+                configuration?.baseURL + (configuration?.posterSizes?.get(4)
+                    ?: "") + movie.posterPath
+            )
+            .apply(imageOptionMovie)
             .into(imagePoster)
-        bindStars(countRating = movie.starRating)
-        bindFavouriteImage(isFavourite = movie.isFavourite)
     }
 
 }
